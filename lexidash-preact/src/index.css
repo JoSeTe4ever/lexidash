@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.card-style {
+    background-image: url('/card-background.png'); /* Cambia esto si el path es distinto */
+    background-size: cover;
+    background-position: center;
+    text-shadow: -2px -2px 0 #000, 2px -2px 0 #000,
+                 -2px  2px 0 #000, 2px  2px 0 #000;
+    font-family: 'Arial Black', sans-serif;
+  }

@@ -1,6 +1,6 @@
 {
   "name": "lexidash-preact",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "framer-motion": "^10.18.0",
     "preact": "^10.19.2",
     "react-router-dom": "^6.22.3",
     "socket.io-client": "^4.7.5",
