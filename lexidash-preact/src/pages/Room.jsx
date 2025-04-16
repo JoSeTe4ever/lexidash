@@ -1,29 +1,46 @@
 import { useParams } from 'react-router-dom';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import GameBoard from '../components/GameBoard';
+import { socket } from '../services/socket';
 
 export default function Room() {
   const { roomId } = useParams();
-
-  const [letters, setLetters] = useState([
-    'A', 'M', 'R',
-    'L', 'O',
-    'G', 'N', 'E',
-  ]);
-  const topic = 'Comida';
-
+  const [letters, setLetters] = useState([]);
+  const [topic, setTopic] = useState('');
   const [word, setWord] = useState('');
   const [submittedWord, setSubmittedWord] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [message, setMessage] = useState('');
   const [usedIndexes, setUsedIndexes] = useState([]);
   const [scorePile, setScorePile] = useState([]);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    socket.emit('join-room', { roomId });
+
+    socket.on('game-started', ({ letters, topic }) => {
+      setLetters(letters);
+      setTopic(topic);
+      setSubmittedWord(null);
+      setIsBlocked(false);
+      setScorePile([]);
+    });
+
+    socket.on('word-submitted', ({ playerId, word }) => {
+      console.log(`[Otro jugador jugó] ${playerId}: ${word}`);
+    });
+
+    return () => {
+      socket.off('game-started');
+      socket.off('word-submitted');
+    };
+  }, [roomId]);
+
+  const handleStartGame = () => {
+    socket.emit('start-game', { roomId });
+  };
 
   const handleSubmit = () => {
-    if (!word.trim()) {
-      setMessage('Introduce una palabra.');
-      return;
-    }
+    if (!word.trim()) return;
 
     const upperWord = word.toUpperCase();
     const copyLetters = [...letters];
@@ -56,12 +73,22 @@ export default function Room() {
       setScorePile(prev => [...prev, ...wonLetters]);
     }, 500);
 
+    socket.emit('submit-word', {
+      roomId,
+      word: upperWord,
+      playerId: socket.id
+    });
+
     setWord('');
   };
 
   return (
     <div className="p-6 bg-green-50 min-h-screen flex flex-col items-center">
       <h2 className="text-2xl font-bold mb-4">Sala: {roomId}</h2>
+      <button onClick={handleStartGame} className="mb-4 bg-indigo-500 text-white px-4 py-2 rounded-md">
+        Iniciar partida
+      </button>
+
       <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
 
       {!isBlocked ? (

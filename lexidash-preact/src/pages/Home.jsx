@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
+import { socket } from '../services/socket';
 
 export default function Home() {
   const navigate = useNavigate();
 
   const createRoom = () => {
-    const roomId = uuidv4().slice(0, 6);
-    navigate(`/room/${roomId}`);
+    socket.emit('create-room');
+    socket.once('room-created', ({ roomId }) => {
+      navigate(`/room/${roomId}`);
+    });
   };
 
   return (
