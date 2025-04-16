@@ -9,6 +9,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "framer-motion": "^10.18.0",
+    "lexidash-preact": "file:",
     "preact": "^10.19.2",
     "react-router-dom": "^6.22.3",
     "socket.io-client": "^4.7.5",

@@ -18,8 +18,8 @@ export default function LetterCard({ letter, animateOut }) {
           animate={animateOut ? { scale: 0.5, opacity: 0, x: 100, y: 100 } : {}}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-[100px] h-[140px] rounded-lg border-[4px] 
-          border-blue-600 shadow-xl 
+          className="w-[100px] h-[140px] rounded-lg border-[5px] 
+          border-purple-800 shadow-xl 
           flex items-center justify-center text-6xl font-bold text-white card-style select-none"
         >
           {letter}

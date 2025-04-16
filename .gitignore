@@ -1,4 +1,7 @@
+#  NODE MODULES 
+
 ./node_modules
 ./lexidash-preact/node_modules
 ./lexidash-preact/node_modules
 lexidash-preact/node_modules/
+lexidash-backend/node_modules
