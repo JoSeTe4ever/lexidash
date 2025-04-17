@@ -7,6 +7,8 @@ export default function Room() {
   const { roomId } = useParams();
 
   const [name, setName] = useState("");
+  const [roundEnded, setRoundEnded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [letters, setLetters] = useState([]);
   const [topic, setTopic] = useState('');
@@ -21,6 +23,17 @@ export default function Room() {
   const [players, setPlayers] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState(null);
+
+
+  useEffect(() => {
+    socket.on('round-ended', () => {
+      setRoundEnded(true);
+    });
+  
+    return () => {
+      socket.off('round-ended');
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -48,6 +61,15 @@ export default function Room() {
       setHasGameStarted(true);
     });
 
+    socket.on('game-reset', ({ letters, topic }) => {
+      setLetters(letters);
+      setTopic(topic);
+      setSubmittedWord(null);
+      setScorePile([]);
+      setIsBlocked(false); 
+      setMessage('');
+    });
+
     socket.on('word-submitted', ({ playerId, word, usedIndexes }) => {
       // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
       if (playerId === socket.id) return;
@@ -69,11 +91,19 @@ export default function Room() {
       socket.off('game-started');
       socket.off('word-submitted');
       socket.off('player-list');
+      socket.off('game-reset');
+      socket.off('join-room');
     };
   }, [roomId]);
 
   const handleStartGame = () => {
     socket.emit('start-game', { roomId });
+  };
+
+  const handleResetGame = () => {
+    setIsLoading(true);
+    setRoundEnded(false); // ✅ resetear visualmente
+    socket.emit('reset-game', { roomId });
   };
 
   const handleSubmit = () => {
@@ -148,6 +178,15 @@ export default function Room() {
         </button>
       )}
 
+      {isAdmin && roundEnded && (
+        <button
+          onClick={handleResetGame}
+          className="mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+        >
+          🔁 Nueva ronda
+        </button>
+      )}
+
       {
         hasGameStarted && (
           <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
@@ -172,13 +211,14 @@ export default function Room() {
             </button>
             {message && <p className="text-sm mt-1">{message}</p>}
           </div>
-        ) : (
+        ) : submittedWord && (
           <div className="mt-6 text-lg text-green-700 font-semibold">
             Has enviado: {submittedWord}
           </div>
-        ))}
+        )) 
+        }
 
-      {hasGameStarted && (
+      {hasGameStarted && submittedWord && (
         <div className="mt-8 flex flex-col items-center">
           <h3 className="text-lg font-bold text-gray-700 mb-2">Tu montón de puntuación:</h3>
           <div className="flex gap-2 flex-wrap justify-center">

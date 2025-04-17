@@ -1,8 +1,12 @@
 import express from 'express';
-import { Server } from 'socket.io';
+import {
+  Server
+} from 'socket.io';
 import http from 'http';
 import cors from 'cors';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  v4 as uuidv4
+} from 'uuid';
 
 const app = express();
 const server = http.createServer(app);
@@ -27,44 +31,95 @@ io.on('connection', (socket) => {
 
   socket.on('create-room', () => {
     const roomId = uuidv4().slice(0, 6);
-    rooms[roomId] = { players: [], board: [], topic: "", adminId: socket.id }// ← ✅ we mark here the adminId
+    rooms[roomId] = {
+      players: [],
+      board: [],
+      topic: "",
+      adminId: socket.id,
+      submittedPlayers: new Set()
+    } // ← ✅ Room initial state definition
     socket.join(roomId);
-    rooms[roomId].players.push({ id: socket.id, name: "Admin", isAdmin: true });
 
-    socket.emit('room-created', { roomId });
+    rooms[roomId].players.push({
+      id: socket.id,
+      name: "Admin",
+      isAdmin: true
+    });
+
+    socket.emit('room-created', {
+      roomId
+    });
     console.log(`[Room Created] ${roomId}`);
   });
 
-  socket.on('join-room', ({ roomId, name }) => {
+  socket.on('join-room', ({
+    roomId,
+    name
+  }) => {
     if (rooms[roomId]) {
       const isAdmin = socket.id === rooms[roomId].adminId;
-      if(!isAdmin) {
-        rooms[roomId].players.push({ id: socket.id, name, isAdmin: false });
+      if (!isAdmin) {
+        rooms[roomId].players.push({
+          id: socket.id,
+          name,
+          isAdmin: false
+        });
       }
       socket.join(roomId);
-      io.to(roomId).emit('player-list', { players: rooms[roomId].players });
+      io.to(roomId).emit('player-list', {
+        players: rooms[roomId].players
+      });
     } else {
-      socket.emit('room-error', { message: 'Room does not exist' });
+      socket.emit('room-error', {
+        message: 'Room does not exist'
+      });
     }
-    
+
   });
 
-  socket.on('start-game', ({ roomId }) => {
+  socket.on('start-game', ({
+    roomId
+  }) => {
     if (rooms[roomId]) {
       const letters = generateLetters();
       const topic = getRandomTopic();
       rooms[roomId].board = letters;
       rooms[roomId].topic = topic;
-  
-      io.to(roomId).emit('game-started', { letters, topic });
+
+      io.to(roomId).emit('game-started', {
+        letters,
+        topic
+      });
     } else {
-      socket.emit('room-error', { message: 'Room does not exist' });
+      socket.emit('room-error', {
+        message: 'Room does not exist'
+      });
     }
   });
 
-  socket.on('submit-word', ({ roomId, word, playerId, usedIndexes }) => {
+  socket.on('submit-word', ({
+    roomId,
+    word,
+    playerId,
+    usedIndexes
+  }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+  
+    // 👽 no se pueden volver a enviar palabras.
+    room.submittedPlayers.add(playerId);
+
     // ✅ Avisamos a todos en la sala qué letras eliminar
-    io.to(roomId).emit('word-submitted', { playerId, word, usedIndexes });
+    io.to(roomId).emit('word-submitted', {
+      playerId,
+      word,
+      usedIndexes
+    });
+
+      // ¿Todos han enviado?
+    if (room.submittedPlayers.size === room.players.length) {
+      io.to(roomId).emit('round-ended');
+    }
   });
 
   socket.on('disconnect', () => {
@@ -82,16 +137,24 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('reset-game', ({ roomId }) => {
+  socket.on('reset-game', ({
+    roomId
+  }) => {
     if (rooms[roomId]) {
       const letters = generateLetters();
       const topic = getRandomTopic();
       rooms[roomId].board = letters;
       rooms[roomId].topic = topic;
-  
-      io.to(roomId).emit('game-reset', { letters, topic });
+      rooms[roomId].submittedPlayers = new Set(); // ✅ clean the submitted players words.
+
+      io.to(roomId).emit('game-reset', {
+        letters,
+        topic
+      });
     } else {
-      socket.emit('room-error', { message: 'Room does not exist' });
+      socket.emit('room-error', {
+        message: 'Room does not exist'
+      });
     }
   });
 
@@ -103,7 +166,9 @@ server.listen(PORT, () => {
 
 function generateLetters() {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  return Array.from({ length: 8 }, () => letters[Math.floor(Math.random() * letters.length)]);
+  return Array.from({
+    length: 8
+  }, () => letters[Math.floor(Math.random() * letters.length)]);
 }
 
 function getRandomTopic() {

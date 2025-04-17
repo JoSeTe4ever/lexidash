@@ -12,3 +12,39 @@
   font-family: 'Arial Black', sans-serif;
   filter: 'sepia(1) hue-rotate(20deg) saturate(6) brightness(1.1)'
 }
+
+.title {
+  font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', sans-serif;
+  font-weight: bold;
+  font-size: 8rem; /* Aumentado de 4rem a 8rem */
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.title span {
+  -webkit-text-stroke-width: 3px;
+  text-shadow: 3px 3px 0px #0008;
+  line-height: 1;
+  display: inline-block;
+}
+
+.fast {
+  color: yellow;
+  -webkit-text-stroke-color: navy;
+  transform: rotate(-5deg);
+}
+
+.words {
+  background: linear-gradient(to bottom, rgb(235, 17, 255), rgb(131, 56, 121)); /* ⬇️ rojo arriba, naranja abajo */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke-color: rgb(219, 199, 199); /* borde negro */
+  transform: rotate(5deg);
+}
+
+.big-letter {
+  font-size: 1.3em;
+  display: inline-block;
+  vertical-align: bottom;
+}
