@@ -48,8 +48,17 @@ export default function Room() {
       setHasGameStarted(true);
     });
 
-    socket.on('word-submitted', ({ playerId, word }) => {
-      console.log(`[Otro jugador jugó] ${playerId}: ${word}`);
+    socket.on('word-submitted', ({ playerId, word, usedIndexes }) => {
+      // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
+      if (playerId === socket.id) return;
+    
+      setLetters(prevLetters => {
+        const updated = [...prevLetters];
+        usedIndexes.forEach(idx => {
+          updated[idx] = null;
+        });
+        return updated;
+      });
     });
 
     socket.on('room-error', ({ message }) => {
@@ -104,7 +113,8 @@ export default function Room() {
     socket.emit('submit-word', {
       roomId,
       word: upperWord,
-      playerId: socket.id
+      playerId: socket.id,
+      usedIndexes: tempIndexes, 
     });
 
     setWord('');

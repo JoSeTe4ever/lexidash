@@ -62,8 +62,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('submit-word', ({ roomId, word, playerId }) => {
-    io.to(roomId).emit('word-submitted', { playerId, word });
+  socket.on('submit-word', ({ roomId, word, playerId, usedIndexes }) => {
+    // ✅ Avisamos a todos en la sala qué letras eliminar
+    io.to(roomId).emit('word-submitted', { playerId, word, usedIndexes });
   });
 
   socket.on('disconnect', () => {
