@@ -70,7 +70,7 @@ export default function Room() {
       setMessage('');
     });
 
-    socket.on('word-submitted', ({ playerId, word, usedIndexes }) => {
+    socket.on('word-submitted', ({ playerId, usedIndexes }) => {
       // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
       if (playerId === socket.id) return;
     
