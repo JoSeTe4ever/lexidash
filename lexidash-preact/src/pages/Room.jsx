@@ -59,6 +59,7 @@ export default function Room() {
       setIsBlocked(false);
       setScorePile([]);
       setHasGameStarted(true);
+      setUsedIndexes([]);
     });
 
     socket.on('game-reset', ({ letters, topic }) => {
@@ -67,6 +68,7 @@ export default function Room() {
       setSubmittedWord(null);
       setScorePile([]);
       setIsBlocked(false); 
+      setUsedIndexes([]);
       setMessage('');
     });
 
