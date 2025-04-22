@@ -42,10 +42,9 @@ export default function Room() {
 
     if (!playerName) return;
 
-    socket.emit('join-room', { roomId, name });
+    socket.emit('join-room', { roomId: roomId, name: playerName });
 
     socket.on('player-list', ({ players }) => {
-
       setPlayers(players);
       // am I the admin? 😮
       const me = players.find(p => p.id === socket.id);
