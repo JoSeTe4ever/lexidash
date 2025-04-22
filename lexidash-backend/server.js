@@ -67,10 +67,8 @@ io.on('connection', (socket) => {
       }
       socket.join(roomId);
 
-      console.log(`socket parameters:`, socket.handshake.query);
       console.log(`[Player Joined] ${name} (${socket.id}) to room ${roomId}`);
       console.log(`[Room Players] ${roomId}:`, JSON.stringify(rooms[roomId].players));
-
 
       io.to(roomId).emit('player-list', {
         players: rooms[roomId].players
