@@ -69,6 +69,12 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('player-list', {
         players: rooms[roomId].players
       });
+
+      // 🔥 Enviar estado actual del juego (aunque esté en curso)
+      socket.emit('game-state', {
+        letters: rooms[roomId].board,
+        topic: rooms[roomId].topic,
+      });
     } else {
       socket.emit('room-error', {
         message: 'Room does not exist'

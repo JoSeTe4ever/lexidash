@@ -29,7 +29,7 @@ export default function Room() {
     socket.on('round-ended', () => {
       setRoundEnded(true);
     });
-  
+
     return () => {
       socket.off('round-ended');
     };
@@ -67,7 +67,7 @@ export default function Room() {
       setTopic(topic);
       setSubmittedWord(null);
       setScorePile([]);
-      setIsBlocked(false); 
+      setIsBlocked(false);
       setUsedIndexes([]);
       setMessage('');
     });
@@ -75,7 +75,7 @@ export default function Room() {
     socket.on('word-submitted', ({ playerId, usedIndexes }) => {
       // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
       if (playerId === socket.id) return;
-    
+
       setLetters(prevLetters => {
         const updated = [...prevLetters];
         usedIndexes.forEach(idx => {
@@ -87,6 +87,12 @@ export default function Room() {
 
     socket.on('room-error', ({ message }) => {
       setError(message);
+    });
+
+    socket.on('game-state', ({ letters, topic }) => {
+      setHasGameStarted(true);
+      setLetters(letters);
+      setTopic(topic);
     });
 
     return () => {
@@ -130,23 +136,21 @@ export default function Room() {
     setIsBlocked(true);
     setMessage('✅ ¡Palabra aceptada!');
 
-    setTimeout(() => {
-      const updatedLetters = [...letters];
-      const wonLetters = [];
-      tempIndexes.forEach(idx => {
-        wonLetters.push(updatedLetters[idx]);
-        updatedLetters[idx] = null;
-      });
-      setLetters(updatedLetters);
-      setUsedIndexes([]);
-      setScorePile(prev => [...prev, ...wonLetters]);
-    }, 500);
+    const updatedLetters = [...letters];
+    const wonLetters = [];
+    tempIndexes.forEach(idx => {
+      wonLetters.push(updatedLetters[idx]);
+      updatedLetters[idx] = null;
+    });
+    setLetters(updatedLetters);
+    setUsedIndexes([]);
+    setScorePile(prev => [...prev, ...wonLetters]);
 
     socket.emit('submit-word', {
       roomId,
       word: upperWord,
       playerId: socket.id,
-      usedIndexes: tempIndexes, 
+      usedIndexes: tempIndexes,
     });
 
     setWord('');
@@ -155,11 +159,11 @@ export default function Room() {
   return (
     <div className="p-6 bg-green-50 min-h-screen flex flex-col items-center">
 
-    {error && (
-      <div className="bg-red-100 text-red-800 border border-red-400 px-4 py-2 rounded mb-4 text-center max-w-lg">
-        ⚠️ {error}
-      </div>
-    )}
+      {error && (
+        <div className="bg-red-100 text-red-800 border border-red-400 px-4 py-2 rounded mb-4 text-center max-w-lg">
+          ⚠️ {error}
+        </div>
+      )}
 
       <h2 className="text-2xl font-bold mb-4">Sala: {roomId}</h2>
 
@@ -180,7 +184,7 @@ export default function Room() {
         </button>
       )}
 
-      {isAdmin && roundEnded && (
+      {isAdmin && (
         <button
           onClick={handleResetGame}
           className="mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
@@ -217,8 +221,8 @@ export default function Room() {
           <div className="mt-6 text-lg text-green-700 font-semibold">
             Has enviado: {submittedWord}
           </div>
-        )) 
-        }
+        ))
+      }
 
       {hasGameStarted && submittedWord && (
         <div className="mt-8 flex flex-col items-center">
