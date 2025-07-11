@@ -5,10 +5,9 @@ export default function LetterCard({ letter, animateOut }) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    if (animateOut) {
-      setTimeout(() => setHidden(true), 500);
-    }
-  }, [animateOut]);
+    setHidden(false); // Reset visibility when animateOut changes
+  }, []);
+
 
   return (
     <AnimatePresence>

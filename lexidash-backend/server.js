@@ -110,23 +110,35 @@ io.on('connection', (socket) => {
   socket.on('submit-word', ({
     roomId,
     word,
-    playerId,
-    usedIndexes
+    playerId
   }) => {
     const room = rooms[roomId];
     if (!room) return;
-  
+
     // 👽 no se pueden volver a enviar palabras.
     room.submittedPlayers.add(playerId);
+
+    // Filtrar las letras que están en el tablero y que coinciden con las usadas en la palabra
+    const board = room.board.map(letter => letter.toLowerCase());
+    const wordLetters = word.toLowerCase().split('');
+    const lettersToRemove = [];
+
+    wordLetters.forEach(letter => {
+      const index = board.indexOf(letter);
+      if (index !== -1) {
+        lettersToRemove.push(index);
+        board[index] = null; // Marcar la letra como usada
+      }
+    });
 
     // ✅ Avisamos a todos en la sala qué letras eliminar
     io.to(roomId).emit('word-submitted', {
       playerId,
       word,
-      usedIndexes
+      usedIndexes: lettersToRemove
     });
 
-      // ¿Todos han enviado?
+    // ¿Todos han enviado?
     if (room.submittedPlayers.size === room.players.length) {
       io.to(roomId).emit('round-ended');
     }
@@ -147,23 +159,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('reset-game', ({
-    roomId
-  }) => {
+  socket.on('reset-game', ({ roomId }) => {
     if (rooms[roomId]) {
       const letters = generateLetters();
       const topic = getRandomTopic();
-      rooms[roomId].board = letters;
-      rooms[roomId].topic = topic;
-      rooms[roomId].submittedPlayers = new Set(); // ✅ clean the submitted players words.
-
+      rooms[roomId].board = letters; // Reiniciar el tablero
+      rooms[roomId].topic = topic; // Reiniciar el tema
+      rooms[roomId].submittedPlayers = new Set(); // Limpiar jugadores que enviaron palabras
+  
       io.to(roomId).emit('game-reset', {
         letters,
-        topic
+        topic,
       });
     } else {
       socket.emit('room-error', {
-        message: 'Room does not exist'
+        message: 'Room does not exist',
       });
     }
   });

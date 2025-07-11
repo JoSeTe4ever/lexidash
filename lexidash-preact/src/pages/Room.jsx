@@ -120,31 +120,30 @@ export default function Room() {
     const copyLetters = [...letters];
     const tempIndexes = [];
 
+    // Solo eliminar letras que están en el tablero
     for (let char of upperWord) {
       const index = copyLetters.findIndex((l, i) => l === char && !tempIndexes.includes(i));
       if (index !== -1) {
         tempIndexes.push(index);
-      } else {
-        setMessage('❌ Usa solo letras del tablero.');
-        return;
+        copyLetters[index] = null; // Marcar la letra como usada
       }
     }
 
+    // Actualizar estado local
     setUsedIndexes(tempIndexes);
     setSubmittedWord(upperWord);
     setIsBlocked(true);
     setMessage('✅ ¡Palabra aceptada!');
 
     const updatedLetters = [...letters];
+    setLetters([...letters]);
     const wonLetters = [];
     tempIndexes.forEach(idx => {
       wonLetters.push(updatedLetters[idx]);
-      updatedLetters[idx] = null;
     });
-    setLetters(updatedLetters);
-    setUsedIndexes([]);
     setScorePile(prev => [...prev, ...wonLetters]);
 
+    // Emitir evento al servidor
     socket.emit('submit-word', {
       roomId,
       word: upperWord,
