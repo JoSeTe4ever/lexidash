@@ -1,0 +1,12 @@
+.room-container {
+    background-color: #f0fdf4; /* Color de fondo actual */
+    background-image: url('/images/fondo.png'); /* Ruta al PNG */
+    background-size: cover; /* Ajusta el tamaño del PNG */
+    background-repeat: no-repeat; /* Evita que se repita */
+    background-position: center; /* Centra la imagen */
+    min-height: 100vh; /* Asegura que cubra toda la pantalla */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }

@@ -155,16 +155,15 @@ export default function Room() {
   };
 
   return (
-    <div className="p-6 bg-green-50 min-h-screen flex flex-col items-center">
-
+    <div className="room-container">
       {error && (
         <div className="bg-red-100 text-red-800 border border-red-400 px-4 py-2 rounded mb-4 text-center max-w-lg">
           ⚠️ {error}
         </div>
       )}
-
+  
       <h2 className="text-2xl font-bold mb-4">Sala: {roomId}</h2>
-
+  
       <div className="mt-2 text-gray-800 text-sm">
         Jugadores en sala: {players.length}
         <ul className="list-disc ml-6">
@@ -175,13 +174,13 @@ export default function Room() {
           ))}
         </ul>
       </div>
-
+  
       {!hasGameStarted && isAdmin && (
         <button onClick={handleStartGame} className="mb-4 bg-indigo-500 text-white px-4 py-2 rounded-md">
           Iniciar partida
         </button>
       )}
-
+  
       {isAdmin && (
         <button
           onClick={handleResetGame}
@@ -190,52 +189,52 @@ export default function Room() {
           🔁 Nueva ronda
         </button>
       )}
-
-      {
-        hasGameStarted && (
-          <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
-        )
-      }
-
+  
       {hasGameStarted && (
-        !isBlocked ? (
-          <div className="mt-6 flex flex-col items-center gap-2">
-            <input
-              type="text"
-              className="border-2 border-gray-300 rounded-md px-4 py-2 text-xl"
-              placeholder="Escribe tu palabra"
-              value={word}
-              onInput={(e) => setWord(e.target.value)}
-            />
-            <button
-              onClick={handleSubmit}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              Enviar palabra
-            </button>
-            {message && <p className="text-sm mt-1">{message}</p>}
-          </div>
-        ) : submittedWord && (
-          <div className="mt-6 text-lg text-green-700 font-semibold">
-            Has enviado: {submittedWord}
-          </div>
-        ))
-      }
-
-      {hasGameStarted && submittedWord && (
-        <div className="mt-8 flex flex-col items-center">
-          <h3 className="text-lg font-bold text-gray-700 mb-2">Tu montón de puntuación:</h3>
-          <div className="flex gap-2 flex-wrap justify-center">
-            {scorePile.map((letter, idx) => (
-              <div
-                key={idx}
-                className="w-12 h-16 flex items-center justify-center text-xl font-bold bg-yellow-100 border-2 border-yellow-500 rounded-md shadow"
+        <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
+      )}
+  
+      {hasGameStarted && (
+        <>
+          {!isBlocked ? (
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <input
+                type="text"
+                className="border-2 border-gray-300 rounded-md px-4 py-2 text-xl"
+                placeholder="Escribe tu palabra"
+                value={word}
+                onInput={(e) => setWord(e.target.value)}
+              />
+              <button
+                onClick={handleSubmit}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
               >
-                {letter}
+                Enviar palabra
+              </button>
+              {message && <p className="text-sm mt-1">{message}</p>}
+            </div>
+          ) : submittedWord && (
+            <div className="mt-6 text-lg text-green-700 font-semibold">
+              Has enviado: {submittedWord}
+            </div>
+          )}
+  
+          {submittedWord && (
+            <div className="mt-8 flex flex-col items-center">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">Tu montón de puntuación:</h3>
+              <div className="flex gap-2 flex-wrap justify-center">
+                {scorePile.map((letter, idx) => (
+                  <div
+                    key={idx}
+                    className="w-12 h-16 flex items-center justify-center text-xl font-bold bg-yellow-100 border-2 border-yellow-500 rounded-md shadow"
+                  >
+                    {letter}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

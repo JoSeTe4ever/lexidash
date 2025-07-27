@@ -58,7 +58,13 @@ io.on('connection', (socket) => {
   }) => {
     if (rooms[roomId]) {
       const isAdmin = socket.id === rooms[roomId].adminId;
-      if (!isAdmin) {
+      if (isAdmin) {
+        // Actualizar el nombre del administrador
+        const adminPlayer = rooms[roomId].players.find(p => p.id === socket.id);
+        if (adminPlayer) {
+          adminPlayer.name = name;
+        }
+      } else {
         rooms[roomId].players.push({
           id: socket.id,
           name,
@@ -159,14 +165,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('reset-game', ({ roomId }) => {
+  socket.on('reset-game', ({
+    roomId
+  }) => {
     if (rooms[roomId]) {
       const letters = generateLetters();
       const topic = getRandomTopic();
       rooms[roomId].board = letters; // Reiniciar el tablero
       rooms[roomId].topic = topic; // Reiniciar el tema
       rooms[roomId].submittedPlayers = new Set(); // Limpiar jugadores que enviaron palabras
-  
+
       io.to(roomId).emit('game-reset', {
         letters,
         topic,
@@ -192,6 +200,66 @@ function generateLetters() {
 }
 
 function getRandomTopic() {
-  const topics = ["Animales", "Países", "Comida", "Cine", "Videojuegos", "Viajes"];
+  const topics = [
+    "Animals",
+    "Countries",
+    "Food",
+    "Movies",
+    "Video Games",
+    "Travel",
+    "Sports",
+    "Colors",
+    "Famous People",
+    "Brands",
+    "Jobs",
+    "Clothing",
+    "Music",
+    "Books",
+    "TV Shows",
+    "Hobbies",
+    "Fruits",
+    "Vegetables",
+    "Drinks",
+    "Vehicles",
+    "Cities",
+    "Flowers",
+    "Instruments",
+    "Languages",
+    "Superheroes",
+    "Tools",
+    "Planets",
+    "Body Parts",
+    "Weather",
+    "Holidays",
+    "Mythical Creatures",
+    "Board Games",
+    "Sea Creatures",
+    "Household Items",
+    "Landmarks",
+    "School Subjects",
+    "Shapes",
+    "Emotions",
+    "Technology",
+    "Desserts",
+    "In the Park",
+    "In the School",
+    "In the Kitchen",
+    "In the Bathroom",
+    "In the Garden",
+    "At the Beach",
+    "At the Mall",
+    "At the Airport",
+    "At the Zoo",
+    "At the Hospital",
+    "At the Office",
+    "At the Gym",
+    "At the Restaurant",
+    "At the Library",
+    "On the Road",
+    "On the Farm",
+    "In the Forest",
+    "In Space",
+    "Under the Sea"
+  ];
   return topics[Math.floor(Math.random() * topics.length)];
 }
