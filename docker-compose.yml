@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./lexidash-backend
+    networks:
+      - lexidash-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./lexidash-preact
+    ports:
+      - "1337:80"
+    networks:
+      - lexidash-net
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  lexidash-net:
+    driver: bridge

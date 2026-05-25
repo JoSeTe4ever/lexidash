@@ -6,4 +6,9 @@ node_modules/
 lexidash-preact/node_modules/
 lexidash-backend/node_modules/
 
+# ENV local
+.env.local
+.env.*.local
+
+
 
