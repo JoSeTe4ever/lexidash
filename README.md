@@ -2,22 +2,60 @@
 This is a online game based on "fast words" card game. Implemented using cursor and AI to get familiar with it.
 
 # vibe coding experience thoughts
-in my vibe coding experiments, as soon as the app gets reasonably complex, llms essentially never work properly on it again. leaving you to debug some reasonably complex codebase full of weird abandoned code that you have no mental context checkpoints for. 
+in my vibe coding experiments, as soon as the app gets reasonably complex, llms essentially never work perfectly on it again. leaving you to debug some reasonably complex codebase full of weird abandoned code that you have no mental context checkpoints for. 
 
 
 # how to run
 
-(locally)
-In lexidash-server, run the following command to start the server:
+## Docker (recomendado)
 
 ```bash
-npm run start
+docker compose up --build
+```
 
-IN lexidash-client, run the following command to start the client:
+La aplicación estará disponible en `http://localhost:1337`.  
+El backend **no** se expone al exterior — nginx hace de proxy para las conexiones Socket.IO.
+
+## Desarrollo local
+
+Desde la raíz del proyecto:
 
 ```bash
+# Instalar dependencias de ambos subpaquetes
+npm run install:all
+
+# Arrancar backend + frontend en paralelo (hot-reload)
 npm run dev
+```
 
+O bien manualmente:
+
+```bash
+# Backend (puerto 3001)
+cd lexidash-backend && npm start
+
+# Frontend (puerto 5173)
+cd lexidash-preact && npm run dev
+```
+
+## Producción (sin Docker)
+
+```bash
+npm run build   # compila el frontend
+npm run start   # arranca backend + frontend preview en paralelo
+```
+
+## Variables de entorno
+
+| Variable | Descripción | Por defecto |
+|---|---|---|
+| `PORT` | Puerto del backend | `3001` |
+| `VITE_SOCKET_URL` | URL del backend para el cliente Socket.IO | `""` (mismo origen) |
+
+Para desarrollo local crea `lexidash-preact/.env.local`:
+```
+VITE_SOCKET_URL=http://localhost:3001
+```
 
 
 ## TODO 

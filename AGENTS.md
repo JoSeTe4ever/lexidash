@@ -3,24 +3,32 @@ This document orients autonomous agents working in this repository.
 Follow the practices below to keep the project reproducible and easy to extend.
 
 ## Repository Map
-- Root `README.md` contains legacy setup wording; prefer this handbook when directions diverge. Also contains game decription and todo list.
+- Root `README.md` contains setup instructions and the game todo list; prefer this handbook when directions diverge.
+- Root `package.json` orchestrates both subpackages via `concurrently`; use it for `dev`, `build`, `start`, and `install:all`.
 - Frontend lives in `lexidash-preact/`; Vite drives the build and Tailwind powers utility classes.
 - Backend lives in `lexidash-backend/`; it is an Express + Socket.IO server written in ESM JavaScript.
+- Docker setup: `docker-compose.yml` at root, `lexidash-preact/Dockerfile` (multi-stage nginx), `lexidash-backend/Dockerfile` (node:20-alpine).
 - Built artifacts under `lexidash-preact/dist/` are checked in; treat them as outputs, not sources.
 - No Cursor or GitHub Copilot rule files exist as of May 2026.
 
 ## Runtime Environment
-- Use Node.js 18 LTS or newer for both packages; npm is the expected package manager.
-- Run `npm install` inside `lexidash-preact/` and `lexidash-backend/` separately; there is no root workspace.
-- The backend listens on `http://localhost:3001` by default; the frontend socket client assumes the same.
+- Use Node.js 20 LTS or newer for both packages; npm is the expected package manager.
+- A root `package.json` exists with `concurrently` as devDependency; run `npm install` at the root for it, then `npm run install:all` to install subpackage deps.
+- `lexidash-preact/package.json` has `"type": "module"`; PostCSS and Tailwind configs use `.cjs` extension (`postcss.config.cjs`, `tailwind.config.cjs`).
+- The backend listens on `http://localhost:3001` by default; the frontend socket URL is configured via `VITE_SOCKET_URL` env variable.
+- For local dev, create `lexidash-preact/.env.local` with `VITE_SOCKET_URL=http://localhost:3001`.
+- In Docker, `VITE_SOCKET_URL` is left empty so the browser connects to the same origin and nginx proxies `/socket.io` to the backend.
 - Tailwind requires PostCSS; Vite handles this automatically through the dev server and build steps.
 - Static assets are served from the frontend `public/images/` directory; keep paths consistent with CSS references.
 
 ## Core Commands
-- `cd lexidash-backend && npm start` launches the Socket.IO server in watchless node mode.
-- `cd lexidash-preact && npm run dev` starts the Vite dev server with hot module reload.
-- `cd lexidash-preact && npm run build` produces the production bundle in `dist/`.
-- `cd lexidash-preact && npm run preview` serves the built frontend locally (requires prior build).
+- `npm run dev` (root) launches backend + frontend in parallel with colored logs via `concurrently`.
+- `npm run build` (root) compiles the frontend with `vite build`.
+- `npm run start` (root) launches backend + frontend preview in parallel (requires prior build).
+- `npm run install:all` (root) installs deps in both `lexidash-backend/` and `lexidash-preact/`.
+- `docker compose up --build` builds images and starts both services; frontend on port `1337`, backend internal only.
+- `cd lexidash-backend && npm start` launches the Socket.IO server standalone.
+- `cd lexidash-preact && npm run dev` starts the Vite dev server standalone.
 - No lint or test scripts are currently defined; see "Testing Strategy" for expectations when adding them.
 
 ## Single-Test Workflow
@@ -102,7 +110,7 @@ Follow the practices below to keep the project reproducible and easy to extend.
 
 ## Socket Usage Patterns
 - All socket events originate from `lexidash-preact/src/services/socket.js`; centralize connection config there.
-- Update the socket base URL via environment variable substitution before deploying (e.g., `import.meta.env.VITE_SOCKET_URL`).
+- The socket URL is controlled by `VITE_SOCKET_URL` env variable. Empty string means same-origin (used in Docker via nginx proxy); set to `http://localhost:3001` in `.env.local` for local dev.
 - When emitting events include the `roomId` to keep handlers stateless.
 - Mirror server event names exactly; a typo breaks the link silently.
 - Use `socket.once` sparingly for one-time events (`room-created`); otherwise manage unsubscription manually.
@@ -115,16 +123,17 @@ Follow the practices below to keep the project reproducible and easy to extend.
 - When adding REST endpoints, define them above the Socket.IO bindings for clarity.
 
 ## Environment Variables
-- Backend currently reads `PORT` from `process.env`; document any new variables here when introduced.
-- Frontend should mirror backend URLs via Vite env files (`.env.local`) rather than editing `socket.js` directly.
+- Backend reads `PORT` from `process.env` (default `3001`).
+- Frontend reads `VITE_SOCKET_URL` from Vite env files; empty string connects to same origin (Docker), full URL for local dev.
+- Local dev: create `lexidash-preact/.env.local` with `VITE_SOCKET_URL=http://localhost:3001`. This file is gitignored.
 - Never commit real credentials; use `.env.example` if configuration becomes non-trivial.
 - Mention required env keys in the repository root README and this handbook simultaneously.
-- Coordinate env naming across frontend and backend (`VITE_SOCKET_URL` vs `SERVER_PORT`) to reduce confusion.
+- Coordinate env naming across frontend and backend (`VITE_SOCKET_URL` vs `PORT`) to reduce confusion.
 
 ## Styling Assets
 - Background imagery is referenced via absolute paths (`/images/background.png`); ensure new assets land in `public/images/`.
 - Keep custom CSS in `src/index.css` or feature-specific files under `src/styles/`; import them explicitly.
-- Tailwind config extends nothing today; add design tokens in `tailwind.config.js` under `theme.extend`.
+- Tailwind config is in `tailwind.config.cjs` (CommonJS, `.cjs` extension required because `package.json` has `"type": "module"`); add design tokens under `theme.extend`.
 - Use accessible color contrasts when introducing new palettes; test across light/dark backgrounds.
 - Avoid inline styles unless dynamic; prefer class utilities for maintainability.
 
@@ -141,6 +150,15 @@ Follow the practices below to keep the project reproducible and easy to extend.
 - Include architecture diagrams or flow descriptions in `docs/` if complexity grows.
 - Reference source files by path when documenting logic flows (`lexidash-preact/src/pages/Room.jsx`).
 - Keep sections concise but comprehensive; outdated guidance is worse than missing guidance.
+
+## Docker
+- `docker-compose.yml` at the root defines two services: `frontend` (port `1337:80`) and `backend` (no exposed ports), both on the `lexidash-net` bridge network.
+- The backend is only reachable from within the Docker network; nginx in the frontend container proxies `/socket.io` WebSocket traffic to `http://backend:3001`.
+- `lexidash-preact/Dockerfile` is multi-stage: stage `build` uses `node:20-alpine` to run `npm run build`, stage `serve` uses `nginx:alpine` and copies `dist/` plus `nginx.conf`.
+- `lexidash-backend/Dockerfile` uses `node:20-alpine` and installs production deps only (`npm install --omit=dev`).
+- Both `.dockerignore` files exclude `node_modules` and `package-lock.json` so that `npm install` inside the container resolves platform-correct binaries (avoids `@rollup/rollup-linux-x64-musl` issues from Windows-generated lockfiles).
+- `lexidash-preact/nginx.conf` handles SPA fallback (`try_files`) and WebSocket upgrade headers for Socket.IO.
+- To rebuild after code changes: `docker compose up --build`.
 
 ## Support Checklist Before Merging
 - Frontend builds cleanly with `npm run build` and renders core flows (home, room, game board).
