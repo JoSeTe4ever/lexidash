@@ -7,6 +7,17 @@ import cors from 'cors';
 import {
   v4 as uuidv4
 } from 'uuid';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DICTIONARY = new Set(
+  readFileSync(join(__dirname, 'dictionary.txt'), 'utf-8')
+    .split('\n')
+    .map(w => w.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const app = express();
 const server = http.createServer(app);
@@ -157,7 +168,8 @@ io.on('connection', (socket) => {
       board: [],
       topic: "",
       adminId: socket.id,
-      submittedPlayers: new Set()
+      submittedPlayers: new Set(),
+      scores: {},
     } // ← ✅ Room initial state definition
     socket.join(roomId);
 
@@ -198,13 +210,15 @@ io.on('connection', (socket) => {
       console.log(`[Room Players] ${roomId}:`, JSON.stringify(rooms[roomId].players));
 
       io.to(roomId).emit('player-list', {
-        players: rooms[roomId].players
+        players: rooms[roomId].players,
+        scores: rooms[roomId].scores || {},
       });
 
       // 🔥 Enviar estado actual del juego (aunque esté en curso)
       socket.emit('game-state', {
         letters: rooms[roomId].board,
         topic: rooms[roomId].topic,
+        scores: rooms[roomId].scores || {},
       });
     } else {
       socket.emit('room-error', {
@@ -222,10 +236,15 @@ io.on('connection', (socket) => {
       const topic = getRandomTopic();
       rooms[roomId].board = letters;
       rooms[roomId].topic = topic;
+      rooms[roomId].scores = {};
+      rooms[roomId].players.forEach(p => {
+        rooms[roomId].scores[p.id] = 0;
+      });
 
       io.to(roomId).emit('game-started', {
         letters,
-        topic
+        topic,
+        scores: rooms[roomId].scores,
       });
     } else {
       socket.emit('room-error', {
@@ -237,37 +256,39 @@ io.on('connection', (socket) => {
   socket.on('submit-word', ({
     roomId,
     word,
-    playerId
+    playerId,
+    usedIndexes,
   }) => {
     const room = rooms[roomId];
     if (!room) return;
 
-    // 👽 no se pueden volver a enviar palabras.
+    const isValid = DICTIONARY.has(word.toLowerCase());
+
+    if (!isValid) {
+      socket.emit('word-invalid', { word, message: `"${word}" is not a valid word.` });
+      return;
+    }
+
+    // 👽 Solo se cuentan como enviados los que envían palabra válida
     room.submittedPlayers.add(playerId);
 
-    // Filtrar las letras que están en el tablero y que coinciden con las usadas en la palabra
-    const board = room.board.map(letter => letter.toLowerCase());
-    const wordLetters = word.toLowerCase().split('');
-    const lettersToRemove = [];
+    // Calcular score: 1 punto por letra del tablero usada
+    const score = usedIndexes ? usedIndexes.length : 0;
+    if (room.scores[playerId] === undefined) room.scores[playerId] = 0;
+    room.scores[playerId] += score;
 
-    wordLetters.forEach(letter => {
-      const index = board.indexOf(letter);
-      if (index !== -1) {
-        lettersToRemove.push(index);
-        board[index] = null; // Marcar la letra como usada
-      }
-    });
-
-    // ✅ Avisamos a todos en la sala qué letras eliminar
+    // ✅ Avisamos a todos en la sala qué letras eliminar + scores actualizados
     io.to(roomId).emit('word-submitted', {
       playerId,
       word,
-      usedIndexes: lettersToRemove
+      usedIndexes: usedIndexes || [],
+      score,
+      scores: room.scores,
     });
 
     // ¿Todos han enviado?
     if (room.submittedPlayers.size === room.players.length) {
-      io.to(roomId).emit('round-ended');
+      io.to(roomId).emit('round-ended', { scores: room.scores });
     }
   });
 
@@ -280,7 +301,8 @@ io.on('connection', (socket) => {
         delete rooms[roomId];
       } else {
         io.to(roomId).emit('player-list', {
-          players: room.players
+          players: room.players,
+          scores: room.scores || {},
         });
       }
     }
@@ -295,10 +317,12 @@ io.on('connection', (socket) => {
       rooms[roomId].board = letters; // Reiniciar el tablero
       rooms[roomId].topic = topic; // Reiniciar el tema
       rooms[roomId].submittedPlayers = new Set(); // Limpiar jugadores que enviaron palabras
+      // ✅ scores se conservan (acumulativos entre rondas)
 
       io.to(roomId).emit('game-reset', {
         letters,
         topic,
+        scores: rooms[roomId].scores || {},
       });
     } else {
       socket.emit('room-error', {

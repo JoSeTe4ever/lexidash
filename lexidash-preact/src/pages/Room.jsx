@@ -23,11 +23,13 @@ export default function Room() {
   const [players, setPlayers] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState(null);
+  const [scores, setScores] = useState({});
 
 
   useEffect(() => {
-    socket.on('round-ended', () => {
+    socket.on('round-ended', ({ scores: serverScores } = {}) => {
       setRoundEnded(true);
+      if (serverScores) setScores(serverScores);
     });
 
     return () => {
@@ -44,14 +46,15 @@ export default function Room() {
 
     socket.emit('join-room', { roomId: roomId, name: playerName });
 
-    socket.on('player-list', ({ players }) => {
+    socket.on('player-list', ({ players, scores: serverScores }) => {
       setPlayers(players);
+      if (serverScores) setScores(serverScores);
       // am I the admin? 😮
       const me = players.find(p => p.id === socket.id);
       setIsAdmin(me?.isAdmin);
     });
 
-    socket.on('game-started', ({ letters, topic }) => {
+    socket.on('game-started', ({ letters, topic, scores: serverScores }) => {
       setLetters(letters);
       setTopic(topic);
       setSubmittedWord(null);
@@ -59,9 +62,10 @@ export default function Room() {
       setScorePile([]);
       setHasGameStarted(true);
       setUsedIndexes([]);
+      if (serverScores) setScores(serverScores);
     });
 
-    socket.on('game-reset', ({ letters, topic }) => {
+    socket.on('game-reset', ({ letters, topic, scores: serverScores }) => {
       setLetters(letters);
       setTopic(topic);
       setSubmittedWord(null);
@@ -69,11 +73,15 @@ export default function Room() {
       setIsBlocked(false);
       setUsedIndexes([]);
       setMessage('');
+      if (serverScores) setScores(serverScores);
     });
 
-    socket.on('word-submitted', ({ playerId, usedIndexes }) => {
+    socket.on('word-submitted', ({ playerId, usedIndexes, scores: serverScores }) => {
       // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
-      if (playerId === socket.id) return;
+      if (playerId === socket.id) {
+        if (serverScores) setScores(serverScores);
+        return;
+      }
 
       setLetters(prevLetters => {
         const updated = [...prevLetters];
@@ -82,21 +90,32 @@ export default function Room() {
         });
         return updated;
       });
+      if (serverScores) setScores(serverScores);
+    });
+
+    socket.on('word-invalid', ({ message: invalidMsg }) => {
+      setIsBlocked(false);
+      setSubmittedWord(null);
+      setScorePile([]);
+      setUsedIndexes([]);
+      setMessage(`❌ ${invalidMsg}`);
     });
 
     socket.on('room-error', ({ message }) => {
       setError(message);
     });
 
-    socket.on('game-state', ({ letters, topic }) => {
+    socket.on('game-state', ({ letters, topic, scores: serverScores }) => {
       setHasGameStarted(true);
       setLetters(letters);
       setTopic(topic);
+      if (serverScores) setScores(serverScores);
     });
 
     return () => {
       socket.off('game-started');
       socket.off('word-submitted');
+      socket.off('word-invalid');
       socket.off('player-list');
       socket.off('game-reset');
       socket.off('join-room');
@@ -168,8 +187,11 @@ export default function Room() {
         Jugadores en sala: {players.length}
         <ul className="list-disc ml-6">
           {players.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="flex items-center gap-2">
               {p.name} {p.isAdmin && <span className="text-xs text-orange-600">(admin)</span>}
+              {hasGameStarted && (
+                <span className="ml-1 font-bold text-indigo-700">{scores[p.id] ?? 0} pts</span>
+              )}
             </li>
           ))}
         </ul>
@@ -232,6 +254,9 @@ export default function Room() {
                   </div>
                 ))}
               </div>
+              <p className="mt-3 text-indigo-700 font-bold text-lg">
+                Total acumulado: {scores[socket.id] ?? 0} pts
+              </p>
             </div>
           )}
         </>
