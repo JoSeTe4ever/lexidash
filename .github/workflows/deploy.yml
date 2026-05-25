@@ -1,0 +1,76 @@
+name: Deploy to Production
+
+# Trigger: se ejecuta únicamente cuando hay un push a la rama main.
+# Esto incluye merges de PRs y commits directos a main.
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: SSH Deploy to Droplet
+    runs-on: ubuntu-latest
+
+    steps:
+      # ─────────────────────────────────────────────────────────────────────
+      # Paso 1: Checkout del código
+      # Necesario para que el runner tenga acceso al repositorio.
+      # También sirve como punto de control: si el código no puede
+      # clonarse correctamente, el deploy falla antes de tocar el servidor.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Paso 2: Deploy via SSH
+      # Usa appleboy/ssh-action para conectarse al servidor y ejecutar
+      # los comandos de despliegue en secuencia.
+      #
+      # Secrets necesarios (configurar en Settings → Secrets → Actions):
+      #   DROPLET_HOST     → hostname o IP del servidor (e.g. jopidevelops.software)
+      #   DROPLET_USER     → usuario SSH (e.g. root o deploy)
+      #   SSH_PRIVATE_KEY  → contenido de la clave privada (comienza con -----BEGIN...)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Tiempo máximo de espera para la conexión SSH (segundos)
+          connect_timeout: 30s
+          # Tiempo máximo para que el script completo termine (segundos)
+          # El build de Docker puede tardar; se deja margen generoso.
+          command_timeout: 300s
+          script: |
+            set -e  # Salir inmediatamente si cualquier comando falla
+
+            # ── Ir al directorio del proyecto ──────────────────────────────
+            # Ajusta esta ruta si el proyecto está en otro directorio.
+            cd ~/projects/lexidash/lexidash/
+
+            # ── Obtener los últimos cambios de la rama main ────────────────
+            # git pull descarga y aplica los commits nuevos (código,
+            # Dockerfiles, docker-compose.yml, etc.)
+            echo ">>> Pulling latest changes from main..."
+            git pull origin main
+
+            # ── Reconstruir y reinicar los contenedores ────────────────────
+            # --build  → reconstruye las imágenes si los Dockerfiles o el
+            #            contexto de build cambiaron.
+            # -d       → modo detached: el comando retorna inmediatamente
+            #            sin quedar esperando los logs del contenedor.
+            # Docker Compose sólo reinicia los servicios cuya imagen cambió,
+            # preservando volúmenes y la red lexidash-net.
+            echo ">>> Rebuilding and restarting containers..."
+            docker compose up -d --build
+
+            # ── Limpiar imágenes huérfanas ─────────────────────────────────
+            # Las imágenes anteriores quedan sin etiqueta tras el rebuild.
+            # Este comando las elimina para liberar espacio en disco.
+            # -f (force) evita el prompt interactivo de confirmación.
+            echo ">>> Pruning dangling images..."
+            docker image prune -f
+
+            echo ">>> Deploy completed successfully!"

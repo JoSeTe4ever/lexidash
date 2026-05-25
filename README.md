@@ -58,6 +58,64 @@ VITE_SOCKET_URL=http://localhost:3001
 ```
 
 
+## CI/CD — Deploy automático con GitHub Actions
+
+Cada push (o merge de PR) a `main` dispara automáticamente un deploy al servidor de producción `jopidevelops.software`.
+
+### Cómo funciona
+
+El workflow `.github/workflows/deploy.yml`:
+1. Se conecta al servidor por SSH
+2. Ejecuta `git pull origin main` para obtener los cambios
+3. Ejecuta `docker compose up -d --build` para reconstruir y reiniciar los contenedores
+4. Limpia imágenes huérfanas con `docker image prune -f`
+
+> **Sin downtime forzado**: `docker compose up --build` recrea únicamente los contenedores cuya imagen cambió, preservando volúmenes y la red interna.
+
+### Secrets de GitHub necesarios
+
+Configúralos en **Settings → Secrets and variables → Actions**:
+
+| Secret | Descripción |
+|---|---|
+| `DROPLET_HOST` | Hostname del servidor, e.g. `jopidevelops.software` |
+| `DROPLET_USER` | Usuario SSH, e.g. `root` o `deploy` |
+| `SSH_PRIVATE_KEY` | Contenido completo de la clave privada (empieza con `-----BEGIN ...-----`) |
+
+### Cómo generar el par de claves SSH (Ed25519)
+
+```bash
+# En tu máquina local — genera un par de claves dedicado para el deploy
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/lexidash_deploy
+
+# Copia la clave PÚBLICA al servidor (una sola vez)
+ssh-copy-id -i ~/.ssh/lexidash_deploy.pub usuario@jopidevelops.software
+
+# El contenido de la clave PRIVADA va al secret SSH_PRIVATE_KEY de GitHub
+cat ~/.ssh/lexidash_deploy
+```
+
+### Estructura esperada en el servidor
+
+```
+~/lexidash/
+├── docker-compose.yml
+├── lexidash-backend/
+│   └── Dockerfile
+├── lexidash-preact/
+│   └── Dockerfile
+└── .env                  ← variables de entorno (nunca en git)
+```
+
+### Recomendaciones de seguridad
+
+- Usa claves **Ed25519** (más modernas y seguras que RSA 2048)
+- Desactiva la autenticación por contraseña en el servidor: `PasswordAuthentication no` en `/etc/ssh/sshd_config`
+- Considera crear un usuario `deploy` con permisos de `docker` en lugar de usar `root`
+- Rota las claves si el repositorio o los secrets se ven comprometidos
+
+---
+
 ## TODO 
 - [ ] Add a Score table that is displayed on the frontend showing the players and their scores (and their words).
 - [ ] Add a feature to allow players to change their names during the game.
