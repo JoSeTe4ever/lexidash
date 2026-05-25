@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "responsive-web-design": {
+      "source": "secondsky/claude-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/responsive-web-design/skills/responsive-web-design/SKILL.md",
+      "computedHash": "d8d425b2b536b568320174acdb7015f60e585fa8d4f061c3d4b120c80a357aff"
+    }
+  }
+}
