@@ -3,7 +3,7 @@ This document orients autonomous agents working in this repository.
 Follow the practices below to keep the project reproducible and easy to extend.
 
 ## Repository Map
-- Root `README.md` contains legacy setup wording; prefer this handbook when directions diverge.
+- Root `README.md` contains legacy setup wording; prefer this handbook when directions diverge. Also contains game decription and todo list.
 - Frontend lives in `lexidash-preact/`; Vite drives the build and Tailwind powers utility classes.
 - Backend lives in `lexidash-backend/`; it is an Express + Socket.IO server written in ESM JavaScript.
 - Built artifacts under `lexidash-preact/dist/` are checked in; treat them as outputs, not sources.

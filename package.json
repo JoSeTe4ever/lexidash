@@ -1,0 +1,14 @@
+{
+  "name": "lexidash",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && npm start\" \"cd lexidash-preact && npm run dev\"",
+    "build": "cd lexidash-preact && npm run build",
+    "start": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && npm start\" \"cd lexidash-preact && npm run preview\"",
+    "install:all": "cd lexidash-backend && npm install && cd ../lexidash-preact && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
