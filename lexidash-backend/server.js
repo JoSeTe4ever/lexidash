@@ -12,12 +12,18 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DICTIONARY = new Set(
-  readFileSync(join(__dirname, 'dictionary.txt'), 'utf-8')
-    .split('\n')
-    .map(w => w.trim().toLowerCase())
-    .filter(Boolean)
-);
+
+const VALIDATE_DICTIONARY = process.env.VALIDATE_DICTIONARY !== 'false';
+console.log(`[Config] Dictionary validation: ${VALIDATE_DICTIONARY ? 'ON' : 'OFF'}`);
+
+const DICTIONARY = VALIDATE_DICTIONARY
+  ? new Set(
+      readFileSync(join(__dirname, 'dictionary.txt'), 'utf-8')
+        .split('\n')
+        .map(w => w.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  : null;
 
 const app = express();
 const server = http.createServer(app);
@@ -212,6 +218,7 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('player-list', {
         players: rooms[roomId].players,
         scores: rooms[roomId].scores || {},
+        validateDictionary: VALIDATE_DICTIONARY,
       });
 
       // 🔥 Enviar estado actual del juego (aunque esté en curso)
@@ -219,6 +226,7 @@ io.on('connection', (socket) => {
         letters: rooms[roomId].board,
         topic: rooms[roomId].topic,
         scores: rooms[roomId].scores || {},
+        validateDictionary: VALIDATE_DICTIONARY,
       });
     } else {
       socket.emit('room-error', {
@@ -245,6 +253,7 @@ io.on('connection', (socket) => {
         letters,
         topic,
         scores: rooms[roomId].scores,
+        validateDictionary: VALIDATE_DICTIONARY,
       });
     } else {
       socket.emit('room-error', {
@@ -262,7 +271,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomId];
     if (!room) return;
 
-    const isValid = DICTIONARY.has(word.toLowerCase());
+    const isValid = !VALIDATE_DICTIONARY || DICTIONARY.has(word.toLowerCase());
 
     if (!isValid) {
       socket.emit('word-invalid', { word, message: `"${word}" is not a valid word.` });
@@ -323,6 +332,7 @@ io.on('connection', (socket) => {
         letters,
         topic,
         scores: rooms[roomId].scores || {},
+        validateDictionary: VALIDATE_DICTIONARY,
       });
     } else {
       socket.emit('room-error', {

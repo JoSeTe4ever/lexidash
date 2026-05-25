@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && npm start\" \"cd lexidash-preact && npm run dev\"",
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && cross-env VALIDATE_DICTIONARY=true node server.js\" \"cd lexidash-preact && npm run dev\"",
     "build": "cd lexidash-preact && npm run build",
-    "start": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && npm start\" \"cd lexidash-preact && npm run preview\"",
+    "start": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && cross-env VALIDATE_DICTIONARY=true node server.js\" \"cd lexidash-preact && npm run preview\"",
+    "run-no-validation": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"cd lexidash-backend && cross-env VALIDATE_DICTIONARY=false node server.js\" \"cd lexidash-preact && npm run dev\"",
     "install:all": "cd lexidash-backend && npm install && cd ../lexidash-preact && npm install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
   }
 }

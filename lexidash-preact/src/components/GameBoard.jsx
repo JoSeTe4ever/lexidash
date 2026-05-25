@@ -11,7 +11,7 @@ export default function GameBoard({ letters, topic, usedIndexes }) {
   const returnIndex = idx => 
      idx > 4 ? idx - 1 : idx; // Convert 0-based index to 1-based for display
   return (
-    <div className="grid grid-cols-3 gap-4 justify-center items-center mt-8">
+    <div className="grid grid-cols-3 gap-2 sm:gap-4 justify-center items-center mt-6 sm:mt-8 px-2 sm:px-0">
       {grid.map((letter, idx) =>
         idx === 4 ? (
           <TopicCard key="topic" topic={topic} />
