@@ -76,6 +76,7 @@ export default function Room() {
       setIsBlocked(false);
       setUsedIndexes([]);
       setMessage('');
+      setHasGameStarted(true);
       if (serverScores) setScores(serverScores);
       if (vd !== undefined) setValidateDictionary(vd);
     });
@@ -110,9 +111,11 @@ export default function Room() {
     });
 
     socket.on('game-state', ({ letters, topic, scores: serverScores, validateDictionary: vd }) => {
-      setHasGameStarted(true);
-      setLetters(letters);
-      setTopic(topic);
+      if (letters && letters.length > 0) {
+        setHasGameStarted(true);
+        setLetters(letters);
+        setTopic(topic);
+      }
       if (serverScores) setScores(serverScores);
       if (vd !== undefined) setValidateDictionary(vd);
     });
@@ -127,8 +130,9 @@ export default function Room() {
     };
   }, [roomId]);
 
-  const handleStartGame = () => {
-    socket.emit('start-game', { roomId });
+  const handleInvite = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert('¡Enlace de invitación copiado al portapapeles!');
   };
 
   const handleResetGame = () => {
@@ -203,19 +207,21 @@ export default function Room() {
           </ul>
         </div>
 
-        {!hasGameStarted && isAdmin && (
-          <button onClick={handleStartGame} className="mt-4 mb-2 bg-indigo-500 text-white px-6 py-3 rounded-md w-full sm:w-auto min-h-[48px]">
-            Iniciar partida
-          </button>
-        )}
-
         {isAdmin && (
-          <button
-            onClick={handleResetGame}
-            className="mt-3 bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition w-full sm:w-auto min-h-[48px]"
-          >
-            🔁 Nueva ronda
-          </button>
+          <>
+            <button
+              onClick={handleResetGame}
+              className="mt-3 bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition w-full sm:w-auto min-h-[48px]"
+            >
+              🔁 Nueva ronda
+            </button>
+            <button
+              onClick={handleInvite}
+              className="mt-2 bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition w-full sm:w-auto min-h-[48px]"
+            >
+              📋 Invite
+            </button>
+          </>
         )}
 
         {hasGameStarted && (
