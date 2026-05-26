@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import GameBoard from '../components/GameBoard';
 import { socket } from '../services/socket';
 
@@ -25,7 +25,27 @@ export default function Room() {
   const [error, setError] = useState(null);
   const [scores, setScores] = useState({});
   const [validateDictionary, setValidateDictionary] = useState(true);
+  const [roundHistory, setRoundHistory] = useState([]);
+  const [currentRound, setCurrentRound] = useState(-1);
 
+  const roundStartTimeRef = useRef(null);
+  const lettersRef = useRef([]);
+  const currentRoundRef = useRef(-1);
+  const playersRef = useRef([]);
+
+
+  // Keep refs in sync so socket handlers can read current state without stale closures
+  useEffect(() => {
+    lettersRef.current = letters;
+  }, [letters]);
+
+  useEffect(() => {
+    currentRoundRef.current = currentRound;
+  }, [currentRound]);
+
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   useEffect(() => {
     socket.on('round-ended', ({ scores: serverScores } = {}) => {
@@ -40,7 +60,7 @@ export default function Room() {
 
 
   useEffect(() => {
-    const playerName = prompt("¿Tu nombre?") || "Anónimo";
+    const playerName = prompt("What's your name?") || "Anonymous";
     setName(playerName);
 
     if (!playerName) return;
@@ -64,6 +84,9 @@ export default function Room() {
       setScorePile([]);
       setHasGameStarted(true);
       setUsedIndexes([]);
+      setCurrentRound(0);
+      currentRoundRef.current = 0;
+      roundStartTimeRef.current = Date.now();
       if (serverScores) setScores(serverScores);
       if (vd !== undefined) setValidateDictionary(vd);
     });
@@ -77,16 +100,40 @@ export default function Room() {
       setUsedIndexes([]);
       setMessage('');
       setHasGameStarted(true);
+      setCurrentRound(prev => {
+        const next = prev + 1;
+        currentRoundRef.current = next;
+        return next;
+      });
+      roundStartTimeRef.current = Date.now();
       if (serverScores) setScores(serverScores);
       if (vd !== undefined) setValidateDictionary(vd);
     });
 
-    socket.on('word-submitted', ({ playerId, usedIndexes, scores: serverScores }) => {
+    socket.on('word-submitted', ({ playerId, word, usedIndexes, score, scores: serverScores }) => {
       // Si tú fuiste quien envió, no hacer nada (ya se gestionó localmente)
       if (playerId === socket.id) {
         if (serverScores) setScores(serverScores);
         return;
       }
+
+      // Capture letters from board before nullifying, and compute elapsed time
+      const usedLetters = usedIndexes.map(idx => lettersRef.current[idx]).filter(Boolean);
+      const elapsed = roundStartTimeRef.current
+        ? Math.round((Date.now() - roundStartTimeRef.current) / 1000)
+        : null;
+      const playerName = playersRef.current.find(p => p.id === playerId)?.name ?? playerId;
+      const isPlayerAdmin = playersRef.current.find(p => p.id === playerId)?.isAdmin ?? false;
+      setRoundHistory(prev => [...prev, {
+        round: currentRoundRef.current,
+        playerId,
+        name: playerName,
+        isAdmin: isPlayerAdmin,
+        word,
+        letters: usedLetters,
+        time: elapsed,
+        pts: score ?? usedLetters.length,
+      }]);
 
       setLetters(prevLetters => {
         const updated = [...prevLetters];
@@ -132,7 +179,7 @@ export default function Room() {
 
   const handleInvite = () => {
     navigator.clipboard.writeText(window.location.href);
-    alert('¡Enlace de invitación copiado al portapapeles!');
+    alert('Invitation link copied to clipboard!');
   };
 
   const handleResetGame = () => {
@@ -161,7 +208,7 @@ export default function Room() {
     setUsedIndexes(tempIndexes);
     setSubmittedWord(upperWord);
     setIsBlocked(true);
-    setMessage('✅ ¡Palabra aceptada!');
+    setMessage('✅ Word accepted!');
 
     const updatedLetters = [...letters];
     setLetters([...letters]);
@@ -179,100 +226,194 @@ export default function Room() {
       usedIndexes: tempIndexes,
     });
 
+    // Guardar submission propia en el historial
+    const elapsed = roundStartTimeRef.current
+      ? Math.round((Date.now() - roundStartTimeRef.current) / 1000)
+      : null;
+    const mePlayer = playersRef.current.find(p => p.id === socket.id);
+    setRoundHistory(prev => [...prev, {
+      round: currentRoundRef.current,
+      playerId: socket.id,
+      name: name,
+      isAdmin: mePlayer?.isAdmin ?? false,
+      word: upperWord,
+      letters: wonLetters,
+      time: elapsed,
+      pts: tempIndexes.length,
+    }]);
+
     setWord('');
   };
 
   return (
     <div className="room-container">
-      <div className="w-full max-w-lg mx-auto px-4 py-6 flex flex-col items-center">
+      <div className="w-full max-w-5xl mx-auto px-4 py-6">
         {error && (
           <div className="bg-red-100 text-red-800 border border-red-400 px-4 py-2 rounded mb-4 text-center w-full">
             ⚠️ {error}
           </div>
         )}
 
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Sala: {roomId}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Room: {roomId}</h2>
 
-        <div className="mt-2 text-gray-800 text-sm w-full">
-          Jugadores en sala: {players.length}
-          <ul className="list-disc ml-6">
-            {players.map((p) => (
-              <li key={p.id} className="flex items-center gap-2">
-                {p.name} {p.isAdmin && <span className="text-xs text-orange-600">(admin)</span>}
-                {hasGameStarted && (
-                  <span className="ml-1 font-bold text-indigo-700">{scores[p.id] ?? 0} pts</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
 
-        {isAdmin && (
-          <>
-            <button
-              onClick={handleResetGame}
-              className="mt-3 bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition w-full sm:w-auto min-h-[48px]"
-            >
-              🔁 Nueva ronda
-            </button>
-            <button
-              onClick={handleInvite}
-              className="mt-2 bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition w-full sm:w-auto min-h-[48px]"
-            >
-              📋 Invite
-            </button>
-          </>
-        )}
+          {/* LEFT: round history table */}
+          <div className="w-full lg:w-2/5 text-gray-800 text-sm">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold">Players: {players.length}</span>
+              {currentRound >= 0 && (
+                <span className="text-xs text-indigo-600 font-medium">Round {currentRound}</span>
+              )}
+            </div>
+            <div className="overflow-y-auto max-h-[60vh] rounded-md border border-gray-200">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-indigo-50 text-indigo-800 sticky top-0 z-10">
+                    <th className="text-center px-2 py-1.5 font-semibold border-b border-indigo-100">#</th>
+                    <th className="text-left px-2 py-1.5 font-semibold border-b border-indigo-100">Player</th>
+                    <th className="text-center px-2 py-1.5 font-semibold border-b border-indigo-100">Pts</th>
+                    {hasGameStarted && (
+                      <>
+                        <th className="text-left px-2 py-1.5 font-semibold border-b border-indigo-100">Word</th>
+                        <th className="text-left px-2 py-1.5 font-semibold border-b border-indigo-100">Play</th>
+                        <th className="text-center px-2 py-1.5 font-semibold border-b border-indigo-100">Time</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {roundHistory.length === 0 && !hasGameStarted ? (
+                    players.map((p, i) => (
+                      <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-2 py-1.5 text-center border-b border-gray-100 text-gray-400">—</td>
+                        <td className="px-2 py-1.5 border-b border-gray-100">
+                          <span className="font-medium">{p.name}</span>
+                          {p.isAdmin && <span className="ml-1.5 text-xs text-orange-600 font-semibold">(admin)</span>}
+                        </td>
+                        <td className="px-2 py-1.5 text-center border-b border-gray-100 font-bold text-indigo-700">
+                          {scores[p.id] ?? 0}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    roundHistory.map((entry, i) => (
+                      <tr key={`${entry.round}-${entry.playerId}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-2 py-1.5 text-center border-b border-gray-100 font-mono text-indigo-500 font-semibold">
+                          {entry.round}
+                        </td>
+                        <td className="px-2 py-1.5 border-b border-gray-100">
+                          <span className="font-medium">{entry.name}</span>
+                          {entry.isAdmin && <span className="ml-1.5 text-xs text-orange-600 font-semibold">(admin)</span>}
+                        </td>
+                        <td className="px-2 py-1.5 text-center border-b border-gray-100 font-bold text-indigo-700">
+                          {entry.pts}
+                        </td>
+                        {hasGameStarted && (
+                          <>
+                            <td className="px-2 py-1.5 border-b border-gray-100 font-mono tracking-wide">
+                              {entry.word ?? <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-2 py-1.5 border-b border-gray-100">
+                              {entry.letters?.length > 0 ? (
+                                <div className="flex gap-0.5 flex-wrap">
+                                  {entry.letters.map((l, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center justify-center w-4 h-5 text-xs font-bold bg-yellow-100 border border-yellow-400 rounded shadow-sm"
+                                    >
+                                      {l}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 text-center border-b border-gray-100 text-gray-600">
+                              {entry.time != null ? `${entry.time}s` : <span className="text-gray-300">—</span>}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        {hasGameStarted && (
-          <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
-        )}
-
-        {hasGameStarted && (
-          <>
-            {!isBlocked ? (
-              <div className="mt-6 flex flex-col items-center gap-2 w-full">
-                <input
-                  type="text"
-                  className="border-2 border-gray-300 rounded-md px-4 py-2 text-lg sm:text-xl w-full"
-                  placeholder="Escribe tu palabra"
-                  value={word}
-                  onInput={(e) => setWord(e.target.value)}
-                />
+          {/* RIGHT: game board + controls */}
+          <div className="w-full lg:w-3/5 flex flex-col items-center">
+            {isAdmin && (
+              <>
                 <button
-                  onClick={handleSubmit}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 w-full sm:w-auto min-h-[48px]"
+                  onClick={handleResetGame}
+                  className="mt-3 bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition w-full sm:w-auto min-h-[48px]"
                 >
-                  Enviar palabra
+                  🔁 New round
                 </button>
-                {message && <p className="text-sm mt-1">{message}</p>}
-              </div>
-            ) : submittedWord && (
-              <div className="mt-6 text-base sm:text-lg text-green-700 font-semibold text-center">
-                Has enviado: {submittedWord}
-              </div>
+                <button
+                  onClick={handleInvite}
+                  className="mt-2 bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition w-full sm:w-auto min-h-[48px]"
+                >
+                  📋 Invite
+                </button>
+              </>
             )}
 
-            {submittedWord && (
-              <div className="mt-6 flex flex-col items-center w-full">
-                <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-2">Tu montón de puntuación:</h3>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {scorePile.map((letter, idx) => (
-                    <div
-                      key={idx}
-                      className="w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-lg sm:text-xl font-bold bg-yellow-100 border-2 border-yellow-500 rounded-md shadow"
-                    >
-                      {letter}
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-indigo-700 font-bold text-base sm:text-lg">
-                  Total acumulado: {scores[socket.id] ?? 0} pts
-                </p>
-              </div>
+            {hasGameStarted && (
+              <GameBoard letters={letters} topic={topic} usedIndexes={usedIndexes} />
             )}
-          </>
-        )}
+
+            {hasGameStarted && (
+              <>
+                {!isBlocked ? (
+                  <div className="mt-6 flex flex-col items-center gap-2 w-full">
+                    <input
+                      type="text"
+                      className="border-2 border-gray-300 rounded-md px-4 py-2 text-lg sm:text-xl w-full"
+                      placeholder="Type your word"
+                      value={word}
+                      onInput={(e) => setWord(e.target.value)}
+                    />
+                    <button
+                      onClick={handleSubmit}
+                      className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 w-full sm:w-auto min-h-[48px]"
+                    >
+                      Submit word
+                    </button>
+                    {message && <p className="text-sm mt-1">{message}</p>}
+                  </div>
+                ) : submittedWord && (
+                  <div className="mt-6 text-base sm:text-lg text-green-700 font-semibold text-center">
+                    You submitted: {submittedWord}
+                  </div>
+                )}
+
+                {submittedWord && (
+                  <div className="mt-6 flex flex-col items-center w-full">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-2">Your score pile:</h3>
+                    <div className="flex gap-2 flex-wrap justify-center">
+                      {scorePile.map((letter, idx) => (
+                        <div
+                          key={idx}
+                          className="w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-lg sm:text-xl font-bold bg-yellow-100 border-2 border-yellow-500 rounded-md shadow"
+                        >
+                          {letter}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-indigo-700 font-bold text-base sm:text-lg">
+                      Total: {scores[socket.id] ?? 0} pts
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+        </div>
       </div>
     </div>
   );

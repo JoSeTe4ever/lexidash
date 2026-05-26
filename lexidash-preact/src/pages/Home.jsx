@@ -23,7 +23,7 @@ export default function Home() {
           onClick={createRoom}
           className="bg-blue-600 text-white px-8 py-4 rounded-xl shadow-lg hover:bg-blue-700 transition text-lg w-full max-w-xs min-h-[48px]"
         >
-          Crear sala
+          Create room
         </button>
       </div>
     </div>
